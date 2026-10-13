@@ -9,12 +9,15 @@ export default function CitizenDashboard() {
   const [summary, setSummary] = useState({ total: 0, underReview: 0, corrections: 0, approved: 0, recent: [] });
   const [applications, setApplications] = useState([]);
   const [message, setMessage] = useState('');
+  const [messageIsError, setMessageIsError] = useState(false);
   const [draft, setDraft] = useState({
     certificateType: 'Income Certificate',
     applicantDetails: { name: user?.name || '', email: user?.email || '', phone: '', address: '' },
     certDetails: { reason: '', village: '', purpose: '' },
-    supportingDocuments: [{ name: 'Identity Proof', originalName: 'id-proof.pdf' }],
+    supportingDocuments: [],
   });
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadData = async () => {
     try {
@@ -26,6 +29,7 @@ export default function CitizenDashboard() {
       setApplications(appResponse.data.applications || []);
     } catch (error) {
       setMessage('Unable to load your portal data right now.');
+      setMessageIsError(true);
     }
   };
 
@@ -36,24 +40,55 @@ export default function CitizenDashboard() {
   const handleApply = async (event) => {
     event.preventDefault();
     setMessage('');
+    setMessageIsError(false);
+    setIsSubmitting(true);
 
-    const created = await api.post('/applications', {
-      certificateType: draft.certificateType,
-      applicantDetails: draft.applicantDetails,
-      certDetails: draft.certDetails,
-      supportingDocuments: draft.supportingDocuments,
-    });
+    try {
+      const formData = new FormData();
+      formData.append('certificateType', draft.certificateType);
+      formData.append('applicantDetails', JSON.stringify(draft.applicantDetails));
+      formData.append('certDetails', JSON.stringify(draft.certDetails));
+      selectedFiles.forEach((file) => formData.append('supportingDocuments', file));
 
-    const app = created.data.application;
-    await api.post(`/applications/${app._id}/submit`);
-    setMessage(`Application submitted successfully. Reference: ${app.referenceNumber}`);
-    loadData();
-    setDraft({
-      certificateType: 'Income Certificate',
-      applicantDetails: { name: user?.name || '', email: user?.email || '', phone: '', address: '' },
-      certDetails: { reason: '', village: '', purpose: '' },
-      supportingDocuments: [{ name: 'Identity Proof', originalName: 'id-proof.pdf' }],
-    });
+      const created = await api.post('/applications', formData);
+      const app = created.data.application;
+      await api.post(`/applications/${app._id}/submit`);
+      setMessage(`Application submitted successfully. Reference: ${app.referenceNumber}`);
+      setMessageIsError(false);
+      setSelectedFiles([]);
+      setDraft({
+        certificateType: 'Income Certificate',
+        applicantDetails: { name: user?.name || '', email: user?.email || '', phone: '', address: '' },
+        certDetails: { reason: '', village: '', purpose: '' },
+        supportingDocuments: [],
+      });
+      loadData();
+    } catch (error) {
+      setMessage(error.response?.data?.message || 'Unable to submit your application. Please try again.');
+      setMessageIsError(true);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleFileSelection = (event) => {
+    const incomingFiles = Array.from(event.target.files || []);
+    event.target.value = '';
+
+    if (selectedFiles.length + incomingFiles.length > 5) {
+      setMessage('You can attach up to 5 documents per application.');
+      setMessageIsError(true);
+      return;
+    }
+    if (incomingFiles.some((file) => file.size > 10 * 1024 * 1024)) {
+      setMessage('Each document must be 10 MB or smaller.');
+      setMessageIsError(true);
+      return;
+    }
+
+    setMessage('');
+    setMessageIsError(false);
+    setSelectedFiles((current) => [...current, ...incomingFiles]);
   };
 
   return (
@@ -190,17 +225,35 @@ export default function CitizenDashboard() {
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Supporting documents</label>
+                <label htmlFor="supporting-documents" className="mb-1 block text-sm font-medium text-slate-700">Supporting documents</label>
                 <input
-                  value={draft.supportingDocuments[0]?.originalName || ''}
-                  onChange={(e) => setDraft({ ...draft, supportingDocuments: [{ ...draft.supportingDocuments[0], originalName: e.target.value }] })}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5"
+                  id="supporting-documents"
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
+                  onChange={handleFileSelection}
+                  className="w-full rounded-xl border border-dashed border-slate-300 px-3 py-3 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:font-medium file:text-slate-700"
                 />
+                <p className="mt-1 text-xs text-slate-500">PDF, Word, JPG, PNG, or WEBP · up to 5 files · 10 MB each</p>
+                {selectedFiles.length > 0 && (
+                  <ul className="mt-3 space-y-2" aria-label="Selected supporting documents">
+                    {selectedFiles.map((file, index) => (
+                      <li key={`${file.name}-${file.lastModified}-${index}`} className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 text-sm">
+                        <span className="truncate">{file.name} <span className="text-slate-500">({(file.size / (1024 * 1024)).toFixed(2)} MB)</span></span>
+                        <button type="button" onClick={() => setSelectedFiles((files) => files.filter((_, fileIndex) => fileIndex !== index))} className="shrink-0 text-sm font-medium text-red-600" aria-label={`Remove ${file.name}`}>
+                          Remove
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
-              {message && <p className="text-sm text-sage font-medium">{message}</p>}
+              {message && <p aria-live="polite" className={`text-sm font-medium ${messageIsError ? 'text-red-600' : 'text-sage'}`}>{message}</p>}
 
-              <button type="submit" className="w-full rounded-xl bg-navy px-4 py-3 font-medium text-white">Submit application</button>
+              <button type="submit" disabled={isSubmitting} className="w-full rounded-xl bg-navy px-4 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-60">
+                {isSubmitting ? 'Submitting…' : 'Submit application'}
+              </button>
             </form>
           </div>
         </div>

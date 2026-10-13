@@ -24,6 +24,19 @@ export default function OfficerDashboard() {
     loadData();
   };
 
+  const downloadDocument = async (application, document) => {
+    const response = await api.get(
+      `/applications/${application._id}/documents/${encodeURIComponent(document.filePath)}`,
+      { responseType: 'blob' }
+    );
+    const downloadUrl = URL.createObjectURL(response.data);
+    const link = window.document.createElement('a');
+    link.href = downloadUrl;
+    link.download = document.originalName;
+    link.click();
+    URL.revokeObjectURL(downloadUrl);
+  };
+
   const stats = [
     { label: 'Assigned', value: applications.length },
     { label: 'Pending review', value: applications.filter((app) => app.currentStatus === 'SUBMITTED' || app.currentStatus === 'UNDER_REVIEW').length },
@@ -74,7 +87,23 @@ export default function OfficerDashboard() {
                 <div className="mt-4 grid gap-4 md:grid-cols-[1.2fr_1fr_1fr]">
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                     <p className="text-xs uppercase tracking-wide text-slate-500">Document review</p>
-                    <p className="mt-2 text-sm text-slate-700">Identity proof, residence proof, and supporting declaration uploaded.</p>
+                    {app.supportingDocuments?.length ? (
+                      <ul className="mt-2 space-y-2">
+                        {app.supportingDocuments.map((document, index) => (
+                          <li key={`${document.filePath || document.originalName}-${index}`}>
+                            {document.filePath ? (
+                              <button type="button" onClick={() => downloadDocument(app, document)} className="break-all text-left text-sm font-medium text-navy underline">
+                                {document.originalName || document.name}
+                              </button>
+                            ) : (
+                              <span className="break-all text-sm text-slate-700">{document.originalName || document.name}</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-2 text-sm text-slate-700">No supporting documents attached.</p>
+                    )}
                   </div>
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                     <p className="text-xs uppercase tracking-wide text-slate-500">Officer notes</p>
