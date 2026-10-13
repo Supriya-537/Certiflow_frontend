@@ -21,7 +21,7 @@ export default function AuthPage() {
     try {
       const payload = mode === 'login'
         ? { email: form.email, password: form.password, role: selectedRole }
-        : { name: form.name, email: form.email, password: form.password };
+        : { name: form.name, email: form.email, password: form.password, role: selectedRole };
 
       const result = mode === 'login' ? await login(payload) : await register(payload);
       if (result?.user?.role === 'citizen') {
@@ -59,28 +59,28 @@ export default function AuthPage() {
           </button>
         </div>
 
-        {mode === 'login' && (
-          <fieldset className="mb-5">
-            <legend className="mb-2 block text-sm font-medium text-slate-700">Sign in as</legend>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                ['citizen', 'Citizen'],
-                ['officer', 'Officer'],
-                ['admin', 'Administrator'],
-              ].map(([role, label]) => (
-                <button
-                  key={role}
-                  type="button"
-                  aria-pressed={selectedRole === role}
-                  onClick={() => setSelectedRole(role)}
-                  className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${selectedRole === role ? 'border-navy bg-navy text-white' : 'border-slate-200 text-slate-600 hover:border-navy'}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-        )}
+        <fieldset className="mb-5">
+          <legend className="mb-2 block text-sm font-medium text-slate-700">
+            {mode === 'login' ? 'Sign in as' : 'Create an account as'}
+          </legend>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              ['citizen', 'Citizen'],
+              ['officer', 'Officer'],
+              ['admin', 'Administrator'],
+            ].map(([role, label]) => (
+              <button
+                key={role}
+                type="button"
+                aria-pressed={selectedRole === role}
+                onClick={() => setSelectedRole(role)}
+                className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${selectedRole === role ? 'border-navy bg-navy text-white' : 'border-slate-200 text-slate-600 hover:border-navy'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </fieldset>
 
         <form onSubmit={submit} className="space-y-4">
           {mode === 'register' && (
@@ -124,7 +124,7 @@ export default function AuthPage() {
           {error && <p className="text-sm text-red-600">{error}</p>}
 
           <button type="submit" className="w-full rounded-xl bg-navy px-4 py-3 font-medium text-white">
-            {mode === 'login' ? 'Login to dashboard' : 'Create citizen account'}
+            {mode === 'login' ? 'Login to dashboard' : `Create ${selectedRole} account`}
           </button>
         </form>
       </div>
