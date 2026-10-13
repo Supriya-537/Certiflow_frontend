@@ -32,7 +32,7 @@ export default function AuthPage() {
         navigate('/admin');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Authentication failed.');
+      setError(err.response?.data?.message || 'Could not reach the server. Check your connection and try again.');
     }
   };
 
@@ -59,7 +59,7 @@ export default function AuthPage() {
           </button>
         </div>
 
-        <fieldset className="mb-5">
+        {mode === 'login' ? <fieldset className="mb-5">
           <legend className="mb-2 block text-sm font-medium text-slate-700">
             {mode === 'login' ? 'Sign in as' : 'Create an account as'}
           </legend>
@@ -80,7 +80,7 @@ export default function AuthPage() {
               </button>
             ))}
           </div>
-        </fieldset>
+        </fieldset> : <p className="mb-5 text-sm text-slate-600">New accounts are registered as citizens.</p>}
 
         <form onSubmit={submit} className="space-y-4">
           {mode === 'register' && (
@@ -115,6 +115,8 @@ export default function AuthPage() {
               name="password"
               value={form.password}
               onChange={handleChange}
+              minLength={mode === 'register' ? 8 : undefined}
+              autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
               className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-sage"
               placeholder="••••••••"
               required
@@ -124,7 +126,7 @@ export default function AuthPage() {
           {error && <p className="text-sm text-red-600">{error}</p>}
 
           <button type="submit" className="w-full rounded-xl bg-navy px-4 py-3 font-medium text-white">
-            {mode === 'login' ? 'Login to dashboard' : `Create ${selectedRole} account`}
+            {mode === 'login' ? 'Login to dashboard' : 'Create citizen account'}
           </button>
         </form>
       </div>
